@@ -8,14 +8,47 @@ image_physicist = None
 image_physicist_refactor = None
 
 
-def show_modal_window(self):
+def search_physicist():
+    def search():
+        text = entry_search.get()
+        if text != 'Введите фио физика...':
+            list_box.delete(0, tk.END)
+            for el in list_of_physicists:
+                if text.lower() in el.lower():
+                    list_box.insert(tk.END, el)
+        else:
+            tk.messagebox.showinfo('Предупреждение', 'Обязательное поле: фио физика')
+            search_window.focus_set()
+
+    def destroy_search():
+        search_window.destroy()
+        list_box.delete(0, tk.END)
+        for option in list_of_physicists:
+            list_box.insert(tk.END, option)
+
+
+    search_window = tk.Toplevel(name='search_window')
+    search_window.title("Поиск")
+    search_window.focus_set()
+    entry_search = ttk.Entry(search_window, width=50)
+    entry_search.configure(foreground='#999')
+    entry_search.bind("<FocusIn>", lambda event: hide_text_info(event.widget, 'Введите фио физика...'))
+    entry_search.bind('<FocusOut>', lambda event: set_text_info(event.widget, 'Введите фио физика...'))
+    entry_search.insert(0, 'Введите фио физика...')
+    entry_search.grid(row=0, column=0, columnspan=2)
+
+    search_button = ttk.Button(search_window, text="Найти", command=search, width=25)
+    search_button.grid(row=1, column=0, pady=10)
+    cancel_button = ttk.Button(search_window, text="Отмена", command=destroy_search, width=25)
+    cancel_button.grid(row=1, column=1, pady=10)
+
+
+def show_modal_window():
     modal_window = tk.Toplevel(name='modal_window')
-    self.pack_window(modal_window)
     modal_window.resizable(False, False)
     modal_window.title("О программе")
-    # image = Image.open('!.jpeg')
-    # image = image.resize((40, 40))
-    # picture = ImageTk.PhotoImage(image)
+    photo = tk.PhotoImage(file='!.png')
+    picture = photo.subsample(6)
     image_label = tk.Label(modal_window, font=("Arial", 40), padx=10, pady=10, image=picture)
     image_label.grid(row=0, column=0, padx=5, pady=5)
     label_text = tk.Label(modal_window, text="База данных 'Знаменитые физики России'\n"
@@ -25,20 +58,20 @@ def show_modal_window(self):
     close_button = ttk.Button(modal_window, text="Ок", style="Close.TButton", command=modal_window.destroy)
     close_button.grid(row=1, column=1, sticky=tk.E, padx=10, pady=5)
 
-    modal_window.transient(master=self.root)
+    modal_window.transient(master=root)
     modal_window.grab_set()
     modal_window.focus_set()
-    self.root.wait_window(modal_window)
+    root.wait_window(modal_window)
 
 
-def help_window(self):
+def help_window():
     window = tk.Toplevel(name='help_window')
     window.title("Справка")
+    window.focus_set()
     window.geometry(f"400x200")
-    self.pack_window(window)
     window.resizable(False, False)
 
-    text = "База данных 'Известные физики России'\n" \
+    text = "База данных 'Знаменитые физики России'\n" \
            "Позволяет: добавлять/ изменять/ удалять информацию.\n" \
            "Клавиши программы:\n" \
            "F1-вызов справки по программе,\n" \
@@ -69,7 +102,7 @@ def on_select(event):
     else:
         photo = io.BytesIO(image_url)
         picture = tk.PhotoImage(data=photo.getvalue())
-        picture = picture.subsample(3)
+        picture = picture.zoom(2, 2)
         image_field.configure(image=picture)
         image_field.image = picture
         text_field.configure(state="normal")
@@ -122,7 +155,7 @@ def open_file_dialog(master, field):
         else:
             image_physicist_refactor = file_path
         picture = tk.PhotoImage(file=file_path)
-        picture = picture.subsample(6)
+        picture = picture.subsample(2, 2)
         field.configure(image=picture)
         field.image = picture
 
@@ -163,6 +196,42 @@ def set_hint_text(event):
     if not field.get(1.0, tk.END).strip():
         field.insert(0.1, "Введите информацию о физике...")
         field.configure(foreground="#999")
+
+
+def delete_physicist(name):
+    if name == "Введите фио физика..." or name == '':
+        messagebox.showerror('Ошибка', 'Поле фио физика не должно быть пустым!')
+        return
+    if name not in list_of_physicists:
+        messagebox.showerror('Ошибка', f'Физика с фио: {name} не существует в базе')
+        return
+    with sq.connect(DB_NAME) as connection:
+        cur = connection.cursor()
+        cur.execute("DELETE FROM physicists WHERE fio = ?", (name,))
+    list_of_physicists.remove(name)
+    list_box_values = list_box.get(0, tk.END)
+    for i, value in enumerate(list_box_values):
+        if value == name:
+            list_box.delete(i)
+    messagebox.showinfo('Удаление физика', f'"{name}" успешно удален!')
+
+
+def delete_physicist_window():
+    del_window = tk.Toplevel(name="delete_window")
+    del_window.title('Удаление физика')
+    del_window.focus_set()
+    entry_del_physicist = ttk.Entry(del_window, width=50)
+    entry_del_physicist.configure(foreground='#999')
+    entry_del_physicist.bind("<FocusIn>", lambda event: hide_text_info(event.widget, 'Введите фио физика...'))
+    entry_del_physicist.bind('<FocusOut>', lambda event: set_text_info(event.widget, 'Введите фио физика...'))
+    entry_del_physicist.insert(0, 'Введите фио физика...')
+    entry_del_physicist.grid(row=0, column=0, columnspan=2)
+    search_button = ttk.Button(del_window, text="Удалить",
+                               command=lambda: delete_physicist(entry_del_physicist.get()),
+                               width=25)
+    search_button.grid(row=1, column=0, pady=10)
+    cancel_button = ttk.Button(del_window, text="Отмена", command=del_window.destroy, width=25)
+    cancel_button.grid(row=1, column=1, pady=10)
 
 
 def refactor_physicist():
@@ -211,14 +280,14 @@ def refactor_physicist():
         try:
             with sq.connect(DB_NAME) as connection:
                 cur = connection.cursor()
-                image_url, description = cur.execute("SELECT picture, description FROM physicists WHERE name = ?",
+                image_url, description = cur.execute("SELECT picture, description FROM physicists WHERE fio = ?",
                                                      (name,)).fetchone()
         except sq.OperationalError:
             tk.messagebox.showerror('Ошибка', 'Нет подключения к базе данных')
         else:
             photo = io.BytesIO(image_url)
             picture = tk.PhotoImage(data=photo.getvalue())
-            picture = picture.subsample(8)
+            picture = picture.subsample(2)
             refactor_file_button.configure(image=picture)
             refactor_file_button.image = picture
             physicist_name_entry_refactor.delete(0, tk.END)
@@ -230,10 +299,11 @@ def refactor_physicist():
 
     refactor_form = tk.Toplevel(name='refactor_window')
     refactor_form.title("Ввод информации о физике")
+    refactor_form.focus_set()
     refactor_form.resizable(False, False)
 
     photo = tk.PhotoImage(file='default.png')
-    photo = photo.subsample(8)
+    photo = photo.subsample(9)
 
     refactor_file_button = ttk.Button(refactor_form, text="Обзор...",
                                       command=lambda: open_file_dialog(refactor_form, refactor_file_button),
@@ -310,6 +380,7 @@ def add_physicist():
     add_form = tk.Toplevel(name='add_window')
     add_form.geometry("370x350")
     add_form.title("Ввод информации о физике")
+    add_form.focus_set()
     add_form.resizable(False, False)
 
     photo = tk.PhotoImage(file='default.png')
@@ -350,7 +421,7 @@ def add_physicist():
 root = tk.Tk()
 style = ttk.Style()
 width = 700
-height = 400
+height = 500
 
 screen_width = root.winfo_screenwidth()
 screen_height = root.winfo_screenheight()
@@ -390,17 +461,17 @@ root.columnconfigure(2, weight=25, uniform="column")
 menu_bar = tk.Menu(root)
 file_menu = tk.Menu(menu_bar, tearoff=0)
 menu_bar.add_cascade(label="Фонд", menu=file_menu)
-# file_menu.add_command(label="Найти...", command=search_lake)
+file_menu.add_command(label="Найти...", command=search_physicist)
 file_menu.add_separator()
 file_menu.add_command(label="Добавить F2", command=add_physicist)
 root.bind("<F2>", lambda event: add_physicist())
-# file_menu.add_command(label="Удалить F3", command=delete_lake_window)
-# root.bind("<F3>", lambda event: delete_lake_window())
-# file_menu.add_command(label="Выйти F4", command=self.root.quit)
+file_menu.add_command(label="Удалить F3", command=delete_physicist_window)
+root.bind("<F3>", lambda event: delete_physicist_window())
+file_menu.add_command(label="Выйти F4", command=root.quit)
 root.bind("<F4>", lambda event: refactor_physicist())
-# root.bind("<F10>", lambda event: file_menu.post(event.x_root, event.y_root))
-#
-# # Menu2
+root.bind("<F10>", lambda event: file_menu.post(event.x_root, event.y_root))
+
+# Menu2
 file_menu2 = tk.Menu(menu_bar, tearoff=0)
 menu_bar.add_cascade(label="Справка", menu=file_menu2)
 file_menu2.add_command(label="Содержание", command=help_window)
